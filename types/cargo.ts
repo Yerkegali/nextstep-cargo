@@ -1,5 +1,13 @@
 export type UserRole = "shipper" | "carrier" | "dispatcher";
 
+export interface CarrierProfile {
+  id: string;
+  name: string;
+  phone: string;
+  vehicleType: string;
+  vehiclePlate: string;
+}
+
 export type OrderStatus = "available" | "accepted" | "in_transit" | "delivered";
 
 export type DeliveryStatus = "assigned" | "loading" | "in_transit" | "delivered";
@@ -42,6 +50,9 @@ export interface CargoOrder {
   hasReturnPotential?: boolean;
   carrierName?: string;
   carrierId?: string;
+  carrierPhone?: string;
+  carrierVehicleType?: string;
+  carrierVehiclePlate?: string;
   acceptedAt?: string;
   startedAt?: string;
   deliveredAt?: string;

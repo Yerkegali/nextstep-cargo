@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
 import { useOrders } from "@/components/orders-provider";
 import { ReturnMatchPanel } from "@/components/return-match-panel";
-import { DEMO_CARRIER_NAME, getOrderErrorMessage } from "@/lib/orders";
+import { CarrierProfileForm, CarrierProfileSummary, useCarrierProfile } from "@/components/carrier-profile";
+import { DEMO_CARRIER_ID, getOrderErrorMessage } from "@/lib/orders";
 import type { CargoOrder, RankedRouteMatch } from "@/types/cargo";
 
 const formatPrice = (value: number) => new Intl.NumberFormat("ru-RU").format(value);
@@ -27,22 +28,30 @@ function TripCard({ order, busy, onAdvance, onFindReturn }: { order: CargoOrder;
 
 export function CarrierView() {
   const { orders: allOrders, loading, error, source, accept, acceptMatch, changeStatus } = useOrders();
+  const { profile, ready: profileReady, saveProfile } = useCarrierProfile();
   const [query, setQuery] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [matchingOrderId, setMatchingOrderId] = useState<string | null>(null);
+  const [editingProfile, setEditingProfile] = useState(false);
   const available = useMemo(() => allOrders.filter((order) => order.status === "available" && `${order.origin.name} ${order.destination.name} ${order.cargoType}`.toLowerCase().includes(query.toLowerCase())), [allOrders, query]);
-  const trips = allOrders.filter((order) => order.carrierName === DEMO_CARRIER_NAME && order.status !== "available");
+  const trips = profile ? allOrders.filter((order) => order.carrierId === profile.id && order.status !== "available") : [];
+  const legacyTrips = allOrders.filter((order) => order.status !== "available" && (!order.carrierId || order.carrierId === DEMO_CARRIER_ID));
 
-  async function handleAccept(order: CargoOrder) { setBusyId(order.id); setFeedback(null); try { await accept(order.id); setFeedback({ type: "success", text: `Заказ ${order.origin.name} → ${order.destination.name} принят. Он добавлен в «Мои рейсы».` }); } catch (caught) { setFeedback({ type: "error", text: getOrderErrorMessage(caught, "Не удалось принять заказ. Попробуйте ещё раз.") }); } finally { setBusyId(null); } }
+  async function handleAccept(order: CargoOrder) { if (!profile) return setEditingProfile(true); setBusyId(order.id); setFeedback(null); try { await accept(order.id, profile); setFeedback({ type: "success", text: `Заказ ${order.origin.name} → ${order.destination.name} принят. Он добавлен в «Мои рейсы».` }); } catch (caught) { setFeedback({ type: "error", text: getOrderErrorMessage(caught, "Не удалось принять заказ. Попробуйте ещё раз.") }); } finally { setBusyId(null); } }
   async function handleAdvance(order: CargoOrder) { setBusyId(order.id); setFeedback(null); try { await changeStatus(order.id, order.status === "accepted" ? "in_transit" : "delivered"); setFeedback({ type: "success", text: order.status === "accepted" ? "Рейс начат. Статус обновлён для всех участников." : "Доставка завершена. Теперь можно подобрать обратный груз." }); } catch (caught) { setFeedback({ type: "error", text: getOrderErrorMessage(caught, "Не удалось обновить статус. Проверьте соединение и повторите попытку.") }); } finally { setBusyId(null); } }
-  async function handleAcceptMatch(match: RankedRouteMatch) { setBusyId(match.returnOrderId); setFeedback(null); try { await acceptMatch(match); setMatchingOrderId(null); setFeedback({ type: "success", text: `Обратный груз ${match.returnOrigin.name} → ${match.returnDestination.name} принят. Плановая экономия: ${match.savedKm} км пустого пробега.` }); } catch (caught) { setFeedback({ type: "error", text: getOrderErrorMessage(caught, "Не удалось принять обратный груз. Обновите подбор и повторите попытку.") }); } finally { setBusyId(null); } }
+  async function handleAcceptMatch(match: RankedRouteMatch) { if (!profile) return setEditingProfile(true); setBusyId(match.returnOrderId); setFeedback(null); try { await acceptMatch(match, profile); setMatchingOrderId(null); setFeedback({ type: "success", text: `Обратный груз ${match.returnOrigin.name} → ${match.returnDestination.name} принят. Плановая экономия: ${match.savedKm} км пустого пробега.` }); } catch (caught) { setFeedback({ type: "error", text: getOrderErrorMessage(caught, "Не удалось принять обратный груз. Обновите подбор и повторите попытку.") }); } finally { setBusyId(null); } }
   const matchingOrder = allOrders.find((order) => order.id === matchingOrderId && order.status === "delivered");
+
+  if (!profileReady) return <section className="view-section"><div className="loading-state" role="status"><span className="spinner" aria-hidden="true"/> Загружаем профиль перевозчика…</div></section>;
+  if (!profile || editingProfile) return <CarrierProfileForm profile={profile} onSave={(input) => { saveProfile(input); setEditingProfile(false); }} onCancel={profile ? () => setEditingProfile(false) : undefined}/>;
 
   return <section className="view-section carrier-view">
     <div className="section-heading"><div><p className="eyebrow">Биржа грузов</p><h1>Доступные заказы</h1><p>Найдите выгодный рейс без пустого обратного пути.</p></div><div className="availability"><span>{available.length}</span><div>активных<br/>заказов</div></div></div>
     <div className="connection-line"><span className={source === "firestore" ? "connected" : "demo"}><i/>{source === "firestore" ? "Firestore · в реальном времени" : "Резервный демо-режим"}</span></div>
+    <CarrierProfileSummary profile={profile} onEdit={() => setEditingProfile(true)}/>
     {(feedback || error) && <div className={`inline-feedback ${feedback?.type === "error" || error ? "error" : "success"}`} role="status">{feedback?.type === "success" && <Icon name="check" className="size-4"/>}<span>{feedback?.text ?? error}</span></div>}
+    {legacyTrips.length > 0 && <div className="legacy-note"><Icon name="shield" className="size-4"/><span>Прежние демо-рейсы ({legacyTrips.length}) сохранены в базе, но не привязаны к текущему профилю.</span></div>}
     {trips.length > 0 && <div className="trips-section"><div className="subsection-title"><div><p className="eyebrow">Демо-перевозчик</p><h2>Мои рейсы</h2></div><span>{trips.filter((order) => order.status !== "delivered").length} активных</span></div><div className="trips-grid">{trips.map((order) => <TripCard key={order.id} order={order} busy={busyId === order.id} onAdvance={() => handleAdvance(order)} onFindReturn={() => { setFeedback(null); setMatchingOrderId(order.id); }}/>)}</div></div>}
     {matchingOrder && <ReturnMatchPanel original={matchingOrder} orders={allOrders} busyId={busyId} onAccept={handleAcceptMatch} onClose={() => setMatchingOrderId(null)}/>} 
     <div className="smart-banner"><div className="smart-icon"><Icon name="route" className="size-6"/></div><div><strong>Умный подбор обратного маршрута</strong><p>Детерминированный расчёт сравнивает доступные грузы и сокращает порожний пробег.</p></div><span className="live-pill"><i/> активно</span></div>

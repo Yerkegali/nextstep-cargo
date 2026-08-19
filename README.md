@@ -14,7 +14,9 @@ The application provides three Russian-language product views:
 - **Перевозчик:** sees available cargo, accepts an order, and updates its delivery lifecycle.
 - **Диспетчер:** sees aggregated order activity, corridors, and the planning impact of accepted return-cargo matches.
 
-The interface is mobile-first for shippers and carriers, with a desktop-oriented dispatcher dashboard. Authentication is intentionally omitted from this hackathon MVP; all carrier actions use a clearly defined demo identity.
+The interface is mobile-first for shippers and carriers, with a desktop-oriented dispatcher dashboard. Authentication is intentionally omitted from this hackathon MVP.
+
+For the hackathon MVP, carrier identity is represented by a persistent browser-local profile. The accepted order stores a snapshot of that carrier’s name, phone, vehicle type, and plate. This is not authentication, and phone numbers are not verified. Production deployment should replace this mechanism with Firebase Authentication and verified user ownership.
 
 ## Core MVP workflow
 
@@ -72,7 +74,7 @@ No map provider, GPS service, paid routing API, authentication provider, payment
 
 ### `orders`
 
-Stores origin and destination references, cargo type, weight, price, planning distance, shipper information, comments, status, carrier demo identity, and lifecycle timestamps.
+Stores origin and destination references, cargo type, weight, price, planning distance, shipper information, comments, status, a carrier-profile snapshot (`carrierId`, name, phone, vehicle type, and plate), and lifecycle timestamps. Older demo records without the full snapshot remain supported.
 
 Supported lifecycle:
 
@@ -124,12 +126,13 @@ NEXT_PUBLIC_FIREBASE_APP_ID=
 ## Demo scenario for judges
 
 1. Open **Диспетчер** and select **Заполнить демо-данными**. Seeding uses stable IDs, creates only missing synthetic records, and never resets modified orders.
-2. Open **Перевозчик** and accept `Актау → Жанаозен`.
-3. Select **Начать рейс**, then **Завершить доставку**.
-4. Select **Найти обратный груз**.
-5. Review the direct `Жанаозен → Актау` recommendation and its before/after empty-distance explanation.
-6. Select **Взять обратный груз**.
-7. Return to **Диспетчер** and verify that saved kilometers, estimated fuel, and estimated KZT savings update from the persisted match.
+2. Open **Перевозчик** and create the lightweight local carrier profile when prompted.
+3. Accept `Актау → Жанаозен` and verify that it appears in **Мои рейсы** for that profile.
+4. Select **Начать рейс**, then **Завершить доставку**.
+5. Select **Найти обратный груз**.
+6. Review the direct `Жанаозен → Актау` recommendation and its before/after empty-distance explanation.
+7. Select **Взять обратный груз**.
+8. Return to **Диспетчер** and verify that the assigned carrier and saved kilometers, estimated fuel, and estimated KZT savings are visible.
 
 Orders can also be created manually in the **Отправитель** view and appear for the carrier without a page refresh.
 

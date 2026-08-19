@@ -15,7 +15,7 @@ import {
 import { demoCargoOrders, mangystauLocations } from "@/data/demo";
 import { firestore } from "@/lib/firebase";
 import { getKnownRouteDistanceKm } from "@/lib/distances";
-import type { CargoOrder, CreateCargoOrderInput, OrderStatus } from "@/types/cargo";
+import type { CargoOrder, CarrierProfile, CreateCargoOrderInput, OrderStatus } from "@/types/cargo";
 
 export const DEMO_CARRIER_NAME = "NextStep Demo Driver";
 export const DEMO_CARRIER_ID = "demo-carrier";
@@ -60,6 +60,9 @@ function mapOrder(id: string, data: DocumentData): CargoOrder {
     hasReturnPotential: Boolean(data.hasReturnPotential),
     carrierName: data.carrierName,
     carrierId: data.carrierId,
+    carrierPhone: data.carrierPhone,
+    carrierVehicleType: data.carrierVehicleType,
+    carrierVehiclePlate: data.carrierVehiclePlate,
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
     acceptedAt: data.acceptedAt ? toIso(data.acceptedAt) : undefined,
@@ -98,19 +101,28 @@ export async function createOrder(input: CreateCargoOrderInput): Promise<string>
   return reference.id;
 }
 
-export async function acceptOrder(orderId: string): Promise<void> {
+export async function acceptOrder(orderId: string, carrier: CarrierProfile): Promise<void> {
   const db = requireFirestore();
   const reference = doc(db, "orders", orderId);
   await runTransaction(db, async (transaction) => {
-    await stageOrderAcceptance(transaction, reference);
+    await stageOrderAcceptance(transaction, reference, carrier);
   });
 }
 
-export async function stageOrderAcceptance(transaction: Transaction, reference: DocumentReference): Promise<void> {
+export async function stageOrderAcceptance(transaction: Transaction, reference: DocumentReference, carrier: CarrierProfile): Promise<void> {
   const snapshot = await transaction.get(reference);
   if (!snapshot.exists()) throw new OrdersServiceError("Заказ больше не существует.", "orders/not-found");
   if (snapshot.data().status !== "available") throw new OrdersServiceError("Этот груз уже принял другой перевозчик. Обновите подбор.", "orders/already-accepted");
-  transaction.update(reference, { status: "accepted", carrierName: DEMO_CARRIER_NAME, carrierId: DEMO_CARRIER_ID, acceptedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  transaction.update(reference, {
+    status: "accepted",
+    carrierId: carrier.id,
+    carrierName: carrier.name,
+    carrierPhone: carrier.phone,
+    carrierVehicleType: carrier.vehicleType,
+    carrierVehiclePlate: carrier.vehiclePlate,
+    acceptedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function updateOrderStatus(orderId: string, nextStatus: "in_transit" | "delivered"): Promise<void> {

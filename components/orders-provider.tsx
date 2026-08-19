@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { isFirebaseConfigured } from "@/lib/firebase";
-import { acceptOrder, createOrder, DEMO_CARRIER_NAME, localDemoOrders, seedDemoOrders, subscribeToOrders, updateOrderStatus } from "@/lib/orders";
+import { acceptOrder, createOrder, localDemoOrders, seedDemoOrders, subscribeToOrders, updateOrderStatus } from "@/lib/orders";
 import { acceptAndPersistRouteMatch, subscribeToRouteMatches } from "@/lib/route-matches";
-import type { CargoOrder, CreateCargoOrderInput, RankedRouteMatch, RouteMatch } from "@/types/cargo";
+import type { CargoOrder, CarrierProfile, CreateCargoOrderInput, RankedRouteMatch, RouteMatch } from "@/types/cargo";
 
 interface OrdersContextValue {
   orders: CargoOrder[];
@@ -13,8 +13,8 @@ interface OrdersContextValue {
   matchesLoading: boolean;
   matchesError: string | null;
   create: (input: CreateCargoOrderInput) => Promise<string>;
-  accept: (orderId: string) => Promise<void>;
-  acceptMatch: (match: RankedRouteMatch) => Promise<void>;
+  accept: (orderId: string, carrier: CarrierProfile) => Promise<void>;
+  acceptMatch: (match: RankedRouteMatch, carrier: CarrierProfile) => Promise<void>;
   changeStatus: (orderId: string, status: "in_transit" | "delivered") => Promise<void>;
   seed: () => Promise<number>;
 }
@@ -51,16 +51,16 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       setOrders((current) => [{ ...input, id, status: "available", pickupDate: input.pickupDate ?? "По договорённости", comment: input.comment, createdAt: now, updatedAt: now }, ...current]);
       return id;
     },
-    accept: async (orderId) => {
-      if (source === "firestore" && isFirebaseConfigured) return acceptOrder(orderId);
-      setOrders((current) => current.map((order) => order.id === orderId && order.status === "available" ? { ...order, status: "accepted", carrierName: DEMO_CARRIER_NAME, carrierId: "demo-carrier", acceptedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : order));
+    accept: async (orderId, carrier) => {
+      if (source === "firestore" && isFirebaseConfigured) return acceptOrder(orderId, carrier);
+      setOrders((current) => current.map((order) => order.id === orderId && order.status === "available" ? { ...order, status: "accepted", carrierName: carrier.name, carrierId: carrier.id, carrierPhone: carrier.phone, carrierVehicleType: carrier.vehicleType, carrierVehiclePlate: carrier.vehiclePlate, acceptedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : order));
     },
-    acceptMatch: async (match) => {
-      if (source === "firestore" && isFirebaseConfigured) return acceptAndPersistRouteMatch(match);
+    acceptMatch: async (match, carrier) => {
+      if (source === "firestore" && isFirebaseConfigured) return acceptAndPersistRouteMatch(match, carrier);
       const available = orders.some((order) => order.id === match.returnOrderId && order.status === "available");
       if (!available) throw new Error("Этот груз уже недоступен. Обновите подбор.");
       const now = new Date().toISOString();
-      setOrders((current) => current.map((order) => order.id === match.returnOrderId ? { ...order, status: "accepted", carrierName: DEMO_CARRIER_NAME, carrierId: "demo-carrier", acceptedAt: now, updatedAt: now } : order));
+      setOrders((current) => current.map((order) => order.id === match.returnOrderId ? { ...order, status: "accepted", carrierName: carrier.name, carrierId: carrier.id, carrierPhone: carrier.phone, carrierVehicleType: carrier.vehicleType, carrierVehiclePlate: carrier.vehiclePlate, acceptedAt: now, updatedAt: now } : order));
       const { returnOrder: _returnOrder, ...storedMatch } = match;
       void _returnOrder;
       setRouteMatches((current) => current.some((item) => item.id === storedMatch.id) ? current : [...current, { ...storedMatch, createdAt: now }]);

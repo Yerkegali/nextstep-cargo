@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Icon } from "@/components/icons";
+import { CarrierAssignment } from "@/components/carrier-assignment";
 import { useOrders } from "@/components/orders-provider";
 import { mangystauLocations } from "@/data/demo";
 import { getKnownRouteDistanceKm } from "@/lib/distances";
@@ -56,7 +57,7 @@ export function ShipperView() {
         <div className="form-footer"><p><Icon name="shield" className="size-4"/> Расстояния — справочная демо-оценка, не GPS</p><button className="primary-button" type="submit" disabled={saving}>{saving ? <><span className="button-spinner"/>Сохраняем…</> : <>Опубликовать заявку <Icon name="arrow" className="size-4"/></>}</button></div>
         {(feedback || connectionError) && <div className={`inline-feedback ${feedback?.type === "success" && !connectionError ? "success" : "error"}`} role="status">{feedback?.type === "success" && <Icon name="check" className="size-4"/>}<span>{feedback?.text ?? connectionError}</span></div>}
       </form>
-      <aside className="recent-orders"><div className="aside-title"><div><p className="eyebrow">Последние заявки</p><h2>Заявки в системе</h2></div><span>{orders.length}</span></div>{loading ? <div className="small-loading" role="status"><span className="spinner" aria-hidden="true"/> Загружаем…</div> : orders.slice(0, 8).map((order) => <article key={order.id}><div className="mini-route"><span>{order.origin.name}</span><Icon name="arrow" className="size-4"/><span>{order.destination.name}</span></div><p>{order.cargoType} · {(order.weightKg / 1000).toLocaleString("ru-RU")} т</p><div><span className={`tag ${order.status}`}>{statusLabels[order.status]}</span><strong>{formatPrice(order.priceKzt)} ₸</strong></div></article>)}{!loading && orders.length === 0 && <p className="aside-empty">Заявок пока нет.</p>}</aside>
+      <aside className="recent-orders"><div className="aside-title"><div><p className="eyebrow">Последние заявки</p><h2>Заявки в системе</h2></div><span>{orders.length}</span></div>{loading ? <div className="small-loading" role="status"><span className="spinner" aria-hidden="true"/> Загружаем…</div> : orders.slice(0, 8).map((order) => <article key={order.id}><div className="mini-route"><span>{order.origin.name}</span><Icon name="arrow" className="size-4"/><span>{order.destination.name}</span></div><p>{order.cargoType} · {(order.weightKg / 1000).toLocaleString("ru-RU")} т</p>{order.status !== "available" && <CarrierAssignment order={order} compact/>}<div><span className={`tag ${order.status}`}>{statusLabels[order.status]}</span><strong>{formatPrice(order.priceKzt)} ₸</strong></div></article>)}{!loading && orders.length === 0 && <p className="aside-empty">Заявок пока нет.</p>}</aside>
     </div>
   </section>;
 }
