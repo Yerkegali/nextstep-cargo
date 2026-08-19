@@ -81,7 +81,7 @@ AI analysis requires the server-side `GEMINI_API_KEY`. Never expose it through a
 - Firebase Web SDK
 - Cloud Firestore real-time listeners and transactions
 
-No map provider, GPS service, paid routing API, authentication provider, payment system, or AI API is currently integrated.
+No map provider, GPS service, paid routing API, authentication provider, or payment system is currently integrated. Gemini is used only by the optional server-side AI Analyst described above.
 
 ## Firestore collections
 
@@ -120,6 +120,12 @@ npm run lint
 npx tsc --noEmit
 npm run build
 ```
+
+## Vercel deployment
+
+The repository is compatible with the standard Next.js deployment flow on Vercel. Configure all variables listed below in the Vercel project environment before building. Keep `GEMINI_API_KEY` server-only; do not rename it with a `NEXT_PUBLIC_` prefix. Firebase and Firestore rules are managed separately and are not deployed by the Next.js build.
+
+This project intentionally does not include commands that deploy Firestore rules or mutate Firebase/Vercel project configuration.
 
 ## Environment variables
 

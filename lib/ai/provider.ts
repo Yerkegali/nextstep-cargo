@@ -4,7 +4,8 @@ import { parseAnalysisResponse } from "@/lib/ai/validation";
 import type { AIAnalysisRequest, AIAnalysisResponse } from "@/lib/ai/types";
 
 const GEMINI_MODEL = "gemini-3.6-flash";
-const PROVIDER_TIMEOUT_MS = 15_000;
+const RETURN_ROUTE_TIMEOUT_MS = 15_000;
+const REGIONAL_FLOW_TIMEOUT_MS = 25_000;
 
 export class AIProviderError extends Error {
   constructor(public readonly code: "not_configured" | "rate_limited" | "unavailable" | "timeout" | "malformed") { super(code); }
@@ -86,7 +87,8 @@ export async function analyzeLogistics(request: AIAnalysisRequest): Promise<AIAn
   if (!apiKey) throw new AIProviderError("not_configured");
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  const timeoutMs = request.type === "regional_flow_analysis" ? REGIONAL_FLOW_TIMEOUT_MS : RETURN_ROUTE_TIMEOUT_MS;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
       method: "POST",
