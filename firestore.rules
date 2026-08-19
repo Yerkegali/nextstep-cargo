@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // HACKATHON MVP ONLY: public demo access while Authentication is intentionally absent.
+    // TODO: replace with authenticated, role-based rules before any production use.
+    match /orders/{orderId} {
+      allow read, create, update: if true;
+      allow delete: if false;
+    }
+    match /routeMatches/{matchId} {
+      allow read, create: if true;
+      allow update, delete: if false;
+    }
+  }
+}
