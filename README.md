@@ -59,6 +59,19 @@ estimatedSavingsKzt = fuelSavedLiters × 300
 
 Fuel and monetary savings are **estimates**, not measured telemetry or guaranteed real-world savings. Dispatcher impact totals include only return matches actually accepted and persisted in Firestore.
 
+## AI Analyst
+
+The deterministic optimization engine remains responsible for route matching, reference-distance comparisons, compatibility scores, and all savings calculations. The optional AI Analyst does not replace or recalculate that engine.
+
+The browser builds a minimal structured snapshot containing route results or aggregated corridor counts and sends it to a Next.js server Route Handler. The server calls Gemini with a server-only key and asks it to explain the supplied facts in a bounded Russian response. Carrier names, phone numbers, Firestore IDs, credentials, and full documents are excluded.
+
+- **Carrier analysis:** explains why the best calculated return route is preferable to the supplied alternatives.
+- **Dispatcher analysis:** interprets aggregated directional imbalance, order counts, and persisted savings totals.
+- AI output is advisory and read-only. It never writes orders, route matches, lifecycle status, profiles, or calculated savings.
+- If Gemini is unavailable or not configured, every core logistics workflow continues normally.
+
+AI analysis requires the server-side `GEMINI_API_KEY`. Never expose it through a `NEXT_PUBLIC_*` variable.
+
 ## Technology stack
 
 - Next.js 16 App Router
@@ -119,6 +132,7 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
+GEMINI_API_KEY=
 ```
 
 `.env.local` is gitignored. Do not commit environment-specific credentials. Firebase Web configuration identifies the Firebase project but does not replace Firestore security rules.
@@ -144,6 +158,7 @@ Orders can also be created manually in the **Отправитель** view and a
 - Matching does not yet consider vehicle dimensions, load compatibility, pickup windows, road restrictions, or weather.
 - Fuel and cost savings are planning estimates based on fixed assumptions.
 - No GPS tracking, real map, notifications, chat, payments, or carrier verification.
+- AI explanations depend on an external provider, are advisory, and are limited to supplied structured application data.
 - Client-side aggregation is appropriate for the MVP dataset, not high-volume regional analytics.
 
 ## Future roadmap
